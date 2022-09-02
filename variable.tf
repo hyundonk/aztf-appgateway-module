@@ -40,3 +40,10 @@ variable "backendpool_ipaddresses" {
 }
  
 variable "probe_path" {}
+
+variable "listener_type" {
+  # "basic", "multi-site"
+  default = "multi-site"
+}
+
+

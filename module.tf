@@ -86,7 +86,7 @@ resource "azurerm_application_gateway" "appgateway" {
     frontend_port_name             = "http"
     protocol                       = "Http"
 
-    host_name                      = var.hostname
+    host_name                      = var.listener_type == "basic" ? null : var.hostname
   }
 
   http_listener {
@@ -95,7 +95,7 @@ resource "azurerm_application_gateway" "appgateway" {
     frontend_port_name              = "https"
     protocol                        = "Https"
 
-    host_name                      = var.hostname
+    host_name                      = var.listener_type == "basic" ? null : var.hostname
     ssl_certificate_name            = var.certificate_name
   }
 
