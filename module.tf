@@ -65,12 +65,23 @@ resource "azurerm_application_gateway" "appgateway" {
       ip_addresses = var.backendpool_ipaddresses
   }
 
+  dynamic "redirect_configuration" {
+    for_each = var.http_redirection == true ? [1] : []
+    content {
+      name                  = "http-rule-${var.hostname}"
+      redirect_type         = "Permanent"
+      target_listener_name  = "https-listener-${var.hostname}"
+      include_path          = true
+      include_query_string  = true
+    }
+  } 
+
   backend_http_settings {
     name                  = "backend"
     port                  = 80
     protocol              = "Http"
     cookie_based_affinity = var.cookie_based_affinity
-    request_timeout       = "20"
+    request_timeout       = "180"
 
     connection_draining   {
       enabled = true
@@ -103,8 +114,12 @@ resource "azurerm_application_gateway" "appgateway" {
     name                        = "http-rule-${var.hostname}"
     rule_type                   = "Basic"
     http_listener_name          = "http-listener-${var.hostname}"
-    backend_address_pool_name   = "backendpool"
-    backend_http_settings_name  = "backend"
+
+    redirect_configuration_name = var.http_redirection == true ? "http-rule-${var.hostname}" : null
+
+    backend_address_pool_name   = var.http_redirection == true ? null : "backendpool"
+    backend_http_settings_name  = var.http_redirection == true ? null : "backend"
+
     priority                    = 200
   }
 
@@ -135,6 +150,11 @@ resource "azurerm_application_gateway" "appgateway" {
     match {
       status_code = ["200"]
     }
+  }
+
+  tags = {
+    "Network"         = "AGW"
+    "Service Domain"  = var.hostname
   }
 }
 

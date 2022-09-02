@@ -46,4 +46,11 @@ variable "listener_type" {
   default = "multi-site"
 }
 
+variable "http_redirection" {
+  default = false
+}
+
+variable "request_timeout" {
+  default = 180
+}
 
