@@ -81,7 +81,7 @@ resource "azurerm_application_gateway" "appgateway" {
     port                  = 80
     protocol              = "Http"
     cookie_based_affinity = var.cookie_based_affinity
-    request_timeout       = "180"
+    request_timeout       = var.request_timeout
 
     connection_draining   {
       enabled = true
