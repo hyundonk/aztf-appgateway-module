@@ -39,16 +39,16 @@ variable "backendpool_ipaddresses" {
 
 }
  
-variable "probe_path" {}
+#variable "probe_path" {}
 
 variable "listener_type" {
   # "basic", "multi-site"
   default = "multi-site"
 }
 
-variable "http_redirection" {
-  default = false
-}
+#variable "http_redirection" {
+#  default = false
+#}
 
 variable "request_timeout" {
   default = 180

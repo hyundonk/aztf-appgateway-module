@@ -1,3 +1,10 @@
+locals {
+  service_domain = join("/", keys(var.hostname))
+  http_redirection_map = {
+    for key, value in var.hostname : 
+      key => value.http_redirection if value.http_redirection == true
+  }
+}
 
 
 resource "azurerm_public_ip" "appgateway" {
@@ -66,70 +73,86 @@ resource "azurerm_application_gateway" "appgateway" {
   }
 
   dynamic "redirect_configuration" {
-    for_each = var.http_redirection == true ? [1] : []
+    for_each = local.http_redirection_map
     content {
-      name                  = "http-rule-${var.hostname}"
+      name                  = "http-rule-${redirect_configuration.key}"
       redirect_type         = "Permanent"
-      target_listener_name  = "https-listener-${var.hostname}"
+      target_listener_name  = "https-listener-${redirect_configuration.key}"
       include_path          = true
       include_query_string  = true
     }
   } 
 
-  backend_http_settings {
-    name                  = "backend"
-    port                  = 80
-    protocol              = "Http"
-    cookie_based_affinity = var.cookie_based_affinity
-    request_timeout       = var.request_timeout
+  dynamic "backend_http_settings" {
+    for_each = var.hostname
+    content {
+      name                  = "backend-${backend_http_settings.key}"
+      port                  = 80
+      protocol              = "Http"
+      cookie_based_affinity = var.cookie_based_affinity
+      request_timeout       = var.request_timeout
 
-    connection_draining   {
-      enabled = true
-      drain_timeout_sec = 180
+      connection_draining   {
+        enabled = true
+        drain_timeout_sec = 180
+      }
+
+      probe_name            = "http-probe-${backend_http_settings.key}"
     }
-
-    probe_name            = "http-probe-${var.hostname}"
   }
 
-  http_listener {
-    name                           = "http-listener-${var.hostname}"
-    frontend_ip_configuration_name = "private"
-    frontend_port_name             = "http"
-    protocol                       = "Http"
+  dynamic "http_listener" {
+    for_each = var.hostname
+    content {
+      name                           = "http-listener-${http_listener.key}"
+      frontend_ip_configuration_name = "private"
+      frontend_port_name             = "http"
+      protocol                       = "Http"
 
-    host_name                      = var.listener_type == "basic" ? null : var.hostname
+      host_name                      = var.listener_type == "basic" ? null : http_listener.key
+    } 
   }
 
-  http_listener {
-    name                            = "https-listener-${var.hostname}"
-    frontend_ip_configuration_name  = "private"
-    frontend_port_name              = "https"
-    protocol                        = "Https"
+  dynamic "http_listener" {
+    for_each = var.hostname
+    content {
+      name                            = "https-listener-${http_listener.key}"
+      frontend_ip_configuration_name  = "private"
+      frontend_port_name              = "https"
+      protocol                        = "Https"
+      require_sni                    = var.listener_type == "basic" ? false : true
 
-    host_name                      = var.listener_type == "basic" ? null : var.hostname
-    ssl_certificate_name            = var.certificate_name
+      host_name                      = var.listener_type == "basic" ? null : http_listener.key
+      ssl_certificate_name            = var.certificate_name
+    } 
   }
 
-  request_routing_rule {
-    name                        = "http-rule-${var.hostname}"
-    rule_type                   = "Basic"
-    http_listener_name          = "http-listener-${var.hostname}"
+  dynamic "request_routing_rule" {
+    for_each = var.hostname
+    content {
+      name                        = "http-rule-${request_routing_rule.key}"
+      rule_type                   = "Basic"
+      http_listener_name          = "http-listener-${request_routing_rule.key}"
 
-    redirect_configuration_name = var.http_redirection == true ? "http-rule-${var.hostname}" : null
+      redirect_configuration_name = request_routing_rule.value.http_redirection == true ? "http-rule-${request_routing_rule.key}" : null
 
-    backend_address_pool_name   = var.http_redirection == true ? null : "backendpool"
-    backend_http_settings_name  = var.http_redirection == true ? null : "backend"
+      backend_address_pool_name   = request_routing_rule.value.http_redirection == true ? null : "backendpool"
+      backend_http_settings_name  = request_routing_rule.value.http_redirection == true ? null : "backend-${request_routing_rule.key}"
 
-    priority                    = 200
+      priority                    = 200 + request_routing_rule.value.rule_priority_increment
+    }
   }
 
-  request_routing_rule {
-    name                        = "https-rule-${var.hostname}"
-    rule_type                   = "Basic"
-    http_listener_name          = "https-listener-${var.hostname}"
-    backend_address_pool_name   = "backendpool"
-    backend_http_settings_name  = "backend"
-    priority                    = 100
+  dynamic "request_routing_rule" {
+    for_each = var.hostname
+    content {
+      name                        = "https-rule-${request_routing_rule.key}"
+      rule_type                   = "Basic"
+      http_listener_name          = "https-listener-${request_routing_rule.key}"
+      backend_address_pool_name   = "backendpool"
+      backend_http_settings_name  = "backend-${request_routing_rule.key}"
+      priority                    = 100 + request_routing_rule.value.rule_priority_increment
+    }
   }
 
   ssl_certificate {
@@ -137,24 +160,27 @@ resource "azurerm_application_gateway" "appgateway" {
     name                = var.certificate_name
   }
 
-  probe {
-    name                = "http-probe-${var.hostname}"
-    protocol            = "Http"
-    path                = var.probe_path
-    host                = var.hostname
+  dynamic "probe" {
+    for_each = var.hostname
+    content {
+      name                = "http-probe-${probe.key}"
+      protocol            = "Http"
+      path                = probe.value.probe_path
+      host                = probe.key
 
-    interval            = "5"
-    timeout             = "2"
-    unhealthy_threshold = "3"
+      interval            = "5"
+      timeout             = "2"
+      unhealthy_threshold = "3"
 
-    match {
-      status_code = ["200"]
+      match {
+        status_code = ["200"]
+      }
     }
   }
 
   tags = {
     "Network"         = "AGW"
-    "Service Domain"  = var.hostname
+    "Service Domain"  = local.service_domain # var.hostname
   }
 }
 
