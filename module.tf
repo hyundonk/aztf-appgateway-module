@@ -140,6 +140,8 @@ resource "azurerm_application_gateway" "appgateway" {
       backend_http_settings_name  = request_routing_rule.value.http_redirection == true ? null : "backend-${request_routing_rule.key}"
 
       priority                    = 200 + request_routing_rule.value.rule_priority_increment
+      rewrite_rule_set_name       = var.rewrite_rule_set_name == null ? null : var.rewrite_rule_set_name
+
     }
   }
 
@@ -152,6 +154,34 @@ resource "azurerm_application_gateway" "appgateway" {
       backend_address_pool_name   = "backendpool"
       backend_http_settings_name  = "backend-${request_routing_rule.key}"
       priority                    = 100 + request_routing_rule.value.rule_priority_increment
+      rewrite_rule_set_name       = var.rewrite_rule_set_name == null ? null : var.rewrite_rule_set_name
+    }
+  }
+
+  dynamic "rewrite_rule_set" {
+    for_each = var.rewrite_rule_set_name == "XFF_client_ip_rewrite" ? [1] : []
+    content {
+      name = "XFF_client_ip_rewrite"
+      
+      rewrite_rule {
+        name            = "XFF_remove_client_ip"
+        rule_sequence   = 100 
+
+        request_header_configuration {
+          header_name   = "X-Forwarded-For"
+          header_value  = ""
+        }
+      }
+
+      rewrite_rule {
+        name            = "HTTP_client_ip" 
+        rule_sequence   = 110 
+
+        request_header_configuration {
+          header_name   = "CLIENT-IP"
+          header_value  = "{var_client_ip}"
+        }
+      }
     }
   }
 

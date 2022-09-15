@@ -54,3 +54,7 @@ variable "request_timeout" {
   default = 180
 }
 
+variable "rewrite_rule_set_name" {
+  default = "XFF_client_ip_rewrite"
+}
+
