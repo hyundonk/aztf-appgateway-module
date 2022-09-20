@@ -114,7 +114,7 @@ resource "azurerm_application_gateway" "appgateway" {
   }
 
   dynamic "http_listener" {
-    for_each = var.certificate_secret_id == null ? [] : [var.hostname]
+    for_each = var.certificate_secret_id == null ? {} : var.hostname
     content {
       name                            = "https-listener-${http_listener.key}"
       frontend_ip_configuration_name  = "private"
@@ -146,7 +146,7 @@ resource "azurerm_application_gateway" "appgateway" {
   }
 
   dynamic "request_routing_rule" {
-    for_each = var.certificate_secret_id == null ? [] : [var.hostname]
+    for_each = var.certificate_secret_id == null ? {} : var.hostname
     content {
       name                        = "https-rule-${request_routing_rule.key}"
       rule_type                   = "Basic"
