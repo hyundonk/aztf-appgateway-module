@@ -28,11 +28,11 @@ variable "hostname" {
 }
 
 variable "certificate_name" {
-
+  default = null
 }
 
 variable "certificate_secret_id" {
-
+  default = null
 }
 
 variable "backendpool_ipaddresses" {
