@@ -139,7 +139,7 @@ resource "azurerm_application_gateway" "appgateway" {
       backend_address_pool_name   = request_routing_rule.value.http_redirection == true ? null : "backendpool"
       backend_http_settings_name  = request_routing_rule.value.http_redirection == true ? null : "backend-${request_routing_rule.key}"
 
-      priority                    = 200 + request_routing_rule.value.rule_priority_increment
+#      priority                    = 200 + request_routing_rule.value.rule_priority_increment
       rewrite_rule_set_name       = var.rewrite_rule_set_name == null ? null : var.rewrite_rule_set_name
 
     }
